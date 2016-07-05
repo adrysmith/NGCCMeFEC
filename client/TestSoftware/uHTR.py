@@ -9,10 +9,11 @@ import os
 import sys
 import time
 import numpy as np
+import shutil
 import multiprocessing as mp
 from subprocess import Popen, PIPE
 from commands import getoutput
-from ROOT import *
+import ROOT
 gROOT.SetBatch()
 
 
@@ -304,7 +305,7 @@ class uHTR():
 				chip_arr=peak_results[peak_key]
 				ratio_pf = [0, 0]
 				for setting in xrange(len(peak_results[peak_key])):
-					print "##### Setting %d #####" %count
+					print "##### Setting %d #####" %setting
 					ratio = float(peak_results[peak_key][setting]) / default_peaks_avg #ratio between shunt-adjusted peak & default peak
 					if (ratio < nominalGainRatios[setting]*1.1 and ratio > nominalGainRatios[setting]*0.9): #within 10% of nominal
 						ratio_pf[0]+=1
@@ -427,7 +428,7 @@ class uHTR():
 			slot_num = str(file.split('_')[-1].split('.root')[0])
 
 			histo_results[slot_num] = getHistoInfo(signal=signalOn, file_in=path_to_root+"/"+file)
-		# shutil.rmtree(out_dir)
+		shutil.rmtree(out_dir)
 		return histo_results
 
 #############################################################
@@ -525,8 +526,7 @@ def get_histo(crate, slot, n_orbits=5000, sepCapID=0, file_out=""):
 def getHistoInfo(file_in="", sepCapID=False, signal=False, qieRange = 0):
 	ROOT.gROOT.SetBatch()
 	slot_result = {}
-	# f = ROOT.TFile(file_in, "READ")
-	f = TFile(file_in, "READ")
+	f = ROOT.TFile(file_in, "READ")
 	if sepCapID:
 		rangeADCoffset = qieRange*64.
 		for i_link in range(24):
