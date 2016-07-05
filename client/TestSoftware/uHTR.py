@@ -309,8 +309,7 @@ class uHTR():
 
 
 		# Create histogram of all chips' ratios for each shunt setting
-		count = 0
-		for sett in settingList:
+		for count, sett in enumerate(settingList):
 			c = ROOT.TCanvas('c','c', 800,800)
 			c.cd()
 
@@ -321,8 +320,6 @@ class uHTR():
 			    hist.Fill(rat)
 			hist.Draw()
 			c.Print('shunt%d.png'%count)
-			c.Delete()
-			count += 1
 
 		dataFile.write("\n\nTotal Pass/Fail for 15 percent error:  ("+str(grand_ratio_pf[0])+", "+str(grand_ratio_pf[1])+")")
 		print "Total Pass/Fail for 15 percent error:  (",grand_ratio_pf[0],", ",grand_ratio_pf[1],")"
