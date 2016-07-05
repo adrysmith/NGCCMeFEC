@@ -4,7 +4,7 @@ import Hardware as hw
 from DChains import DChains
 from DaisyChain import DaisyChain
 from QIE import QIE
-import iglooClass_adry as i
+import iglooClass_adry as ig
 import os
 import sys
 import time
@@ -14,7 +14,6 @@ import multiprocessing as mp
 from subprocess import Popen, PIPE
 from commands import getoutput
 import ROOT
-gROOT.SetBatch()
 
 
 if __name__ == "__main__":
@@ -216,32 +215,6 @@ class uHTR():
 		os.chdir(cwd)
 
 
-# OLD CI TEST
-	# def charge_inject_test(self):
-	# 	ci_results = {} #ci=chargeinjection
-	# 	ci_settings = [90, 180, 360, 720, 1440, 2880, 5760, 8640] #in fC
-	# 	ci_results={}
-	# 	ci_results["settings"]=ci_settings
-	# 	for setting in ci_settings:
-	# 		for qslot in self.qcards:
-	# 			dc=hw.getDChains(qslot, self.bus)
-	# 			dc.read()
-	# 			for chip in xrange(12):
-	# 				dc[chip].ChargeInjectDAC(setting)
-	# 			dc.write()
-	# 			dc.read()
-	# 		histo_results=self.get_histo_results(self.crate, self.uhtr_slots)
-	# 		for uhtr_slot, uhtr_slot_results in histo_results.iteritems():
-	# 			for chip, chip_results in uhtr_slot_results.iteritems():
-	# 				key="({0}, {1}, {2})".format(uhtr_slot, chip_results["link"], chip_results["channel"])
-	# 				ci_results[key].append(chip_results["signalBinMax"])
-	#
-	# 	for qslot in self.qcards:
-	# 		for chip in xrange(12):
-	# 			ci_key=str(self.get_QIE_map(qslot, chip))
-	# 			chip_arr=ci_results[ci_key]
-
-
 
 	''' set chargeinject to highest setting, adjust shunt with Gsel, assess gain ratio between peaks '''
 	def shunt_scan(self):
@@ -251,24 +224,31 @@ class uHTR():
 		grand_ratio_pf = [0,0]
 		default_peaks_avg = 0
 		adc = hw.ADCConverter()
-		# fC/LSB gains in GSel table: (3.1, 4.65, 6.2, 9.3, 12.4, 15.5, 18.6, 21.7, 24.8)
-		gain_settings = [0,1,2,4,8,16,18,20,24]
+		settingList = [3.1, 4.65, 6.2, 9.3, 12.4, 15.5, 18.6, 21.7, 24.8] # fC/LSB gains in GSel table
+		gain_settings = [0,1,2,4,8,16,18,20,24] # bit values that correspond to settingList
 		#ratio between default 3.1fC/LSB and itself/other GSel gains
 		nominalGainRatios = [1.0, .667, .5, .333, .25, .2, .167, .143, 0.125]
+		shuntRatio = [] #will be 2D list holding all chips' ratios for each shunt setting
+
+		dataFile = open("shuntdata.txt", 'w')
+
+		for x in xrange(9):
+			shuntRatio.append(x)
+			shuntRatio[x] = []
+
 		for setting in gain_settings:
-			print "\n\n&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
-			print "&&&&&&&&&&&&&&&&&&&& S E T. = %d &&&&&&&&&&&&&&&&&&&&&&&&" %setting
-			print "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
+			dataFile.write("\n&&&&&&&&&&&&&&&&&&&& S E T. = %d &&&&&&&&&&&&&&&&&&&&&&&&\n" %setting)
 
 			for qslot in self.qcards:
 				dc=hw.getDChains(qslot, self.bus)
 				dc.read()
 				hw.SetQInjMode(1, qslot, self.bus) #turn on CI mode (igloo function)
-				i.displayCI(self.bus, qslot)
+				# ig.displayCI(self.bus, qslot)
 				for chip in xrange(12):
 					dc[chip].PedestalDAC(6)
 					dc[chip].ChargeInjectDAC(8640) #set max CI value
 					dc[chip].Gsel(setting) #increase shunt/decrease gain
+					dc[chip].TimingThresholdDAC(127) #set max tdc threshold
 				dc.write()
 				dc.read()
 
@@ -283,43 +263,80 @@ class uHTR():
 						if 'signalBinMax_2' in chip_results:	# get 2nd peak if needed
 							totalSignal += adc.linearize(chip_results['signalBinMax_2'])
 
-					peak_results[key].append(totalSignal)
-					if setting == 0:
-						default_peaks.append(totalSignal)
+						peak_results[key].append(totalSignal)
 
-			print "\n\nPeak Results: \n", peak_results,'\n\n'
-			print "##########################################"
-			print "##########################################\n"
-			if setting ==0: print "Default peaks: ", default_peaks
+						if setting == 0:
+							default_peaks.append(totalSignal)
+					# else:
+						# print "Error: No signal seen!"
 
-		# calculate average default CI peak of default shunt
-		total = 0
-		for val in default_peaks:
-			default_peaks_avg += val
-			total += 1
-		default_peaks_avg /= total
 
+			dataFile.write("\n\nPeak Results: \n")
+			dataFile.write(str(peak_results) + '\n\n')
+			dataFile.write("\n##########################################")
+			dataFile.write("\n##########################################\n")
+			if setting ==0:
+				dataFile.write("Default peaks: \n")
+				dataFile.write(str(default_peaks))
+
+		default_peaks_avg = sum(default_peaks)/len(default_peaks)
+
+# for 10% error bound checking
+		dataFile.write("\n+++++++++++++++++++ 15 percent error ++++++++++++++++++++")
 		for qslot in self.qcards:
 			for chip in xrange(12):
+				dataFile.write('\n\n')
 				peak_key=str(self.get_QIE_map(qslot, chip))
 				chip_arr=peak_results[peak_key]
 				ratio_pf = [0, 0]
 				for setting in xrange(len(peak_results[peak_key])):
-					print "##### Setting %d #####" %setting
+					# print "##### Setting %d #####" %setting
+					pf = ''
 					ratio = float(peak_results[peak_key][setting]) / default_peaks_avg #ratio between shunt-adjusted peak & default peak
-					if (ratio < nominalGainRatios[setting]*1.1 and ratio > nominalGainRatios[setting]*0.9): #within 10% of nominal
+					shuntRatio[setting].append(ratio)
+					if (ratio < nominalGainRatios[setting]*1.15 and ratio > nominalGainRatios[setting]*0.85): #within 10% of nominal
 						ratio_pf[0]+=1
 						grand_ratio_pf[0]+=1
+						pf = "PASS"
 					else:
 						ratio_pf[1]+=1
 						grand_ratio_pf[1]+=1
+						pf = "FAIL"
 
-					print "qslot: {0}, chip: {1}, setting: {2}, ratio: {3}".format(qslot, chip, setting, ratio)
+					dataFile.write("\nqslot: {0}, chip: {1}, setting: {2}, ratio: {3}, p/f: {4}".format(qslot, chip, setting, ratio, pf))
 
 					self.get_QIE(qslot, chip)["shunt_scan"]=(ratio_pf[0], ratio_pf[1])
 
-		print "Total Pass/Fail for Shunt Scan:  (",grand_ratio_pf[0],", ",grand_ratio_pf[1],")"
 
+		# Create histogram of all chips' ratios for each shunt setting
+		count = 0
+		for sett in settingList:
+			c = ROOT.TCanvas('c','c', 800,800)
+			c.cd()
+
+			hist = ROOT.TH1D('All Chips', 'Shunt Setting: {0} fC/LSB'.format(sett), 20, nominalGainRatios[count]*0.85, nominalGainRatios[count]*1.15)
+			hist.GetXaxis().SetTitle("Ratio (Shunted/Default)")
+			hist.GetYaxis().SetTitle("Number of Chips")
+			for rat in shuntRatio[count]:
+			    hist.Fill(rat)
+			hist.Draw()
+			c.Print('shunt%d.png'%count)
+			c.Delete()
+			count += 1
+
+		dataFile.write("\n\nTotal Pass/Fail for 15 percent error:  ("+str(grand_ratio_pf[0])+", "+str(grand_ratio_pf[1])+")")
+		print "Total Pass/Fail for 15 percent error:  (",grand_ratio_pf[0],", ",grand_ratio_pf[1],")"
+
+		dataFile.close()
+
+		# reset Gsel to close the function
+		for qslot in self.qcards:
+			dc=hw.getDChains(qslot, self.bus)
+			dc.read()
+			for chip in xrange(12):
+				dc[chip].Gsel(0) #set Gsel back to default
+			dc.write()
+			dc.read()
 
 
 #############################################################
@@ -428,7 +445,7 @@ class uHTR():
 			slot_num = str(file.split('_')[-1].split('.root')[0])
 
 			histo_results[slot_num] = getHistoInfo(signal=signalOn, file_in=path_to_root+"/"+file)
-		shutil.rmtree(out_dir)
+		# shutil.rmtree(out_dir)
 		return histo_results
 
 #############################################################
@@ -546,7 +563,7 @@ def getHistoInfo(file_in="", sepCapID=False, signal=False, qieRange = 0):
 				slot_result[histNum] = chip_results
 
 	else:
-                if signal:
+		if signal:
 			for i_link in range(24):
 				for i_ch in range(6):
 					histNum = 6*i_link + i_ch
@@ -563,7 +580,7 @@ def getHistoInfo(file_in="", sepCapID=False, signal=False, qieRange = 0):
 					binValue = 0
 					binNum = 0
 					peakCount = 0
-					for Bin in range(50, lastBin):
+					for Bin in range(15, lastBin):
 						if h.GetBinContent(Bin) >= binValue:
 							binValue = h.GetBinContent(Bin)
 							binNum = Bin
