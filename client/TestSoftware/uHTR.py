@@ -247,11 +247,11 @@ class uHTR():
 		peak_results = {}
 		default_peaks = [] #holds the CI values for 3.1 fC/LSB setting for chips
 		ratio_pf = [0,0] #pass/fail for ratio within 10% of nominal
+		grand_ratio_pf = [0,0]
 		default_peaks_avg = 0
-		#GSel table gain values (in fC/LSB)
-		# gain_settings = [3.1, 4.65, 6.2, 9.3, 12.4, 15.5, 18.6, 21.7, 24.8]
+		adc = hw.ADCConverter()
+		# fC/LSB gains in GSel table: (3.1, 4.65, 6.2, 9.3, 12.4, 15.5, 18.6, 21.7, 24.8)
 		gain_settings = [0,1,2,4,8,16,18,20,24]
-		# gain_settings = [0,1,2]
 		#ratio between default 3.1fC/LSB and itself/other GSel gains
 		nominalGainRatios = [1.0, .667, .5, .333, .25, .2, .167, .143, 0.125]
 		for setting in gain_settings:
@@ -278,9 +278,9 @@ class uHTR():
 					key="({0}, {1}, {2})".format(uhtr_slot, chip_results["link"], chip_results["channel"])
 					if setting == 0: peak_results[key] = []
 					if 'signalBinMax_1' in chip_results:
-						totalSignal = chip_results['signalBinMax_1']
+						totalSignal = adc.linearize(chip_results['signalBinMax_1'])
 						if 'signalBinMax_2' in chip_results:	# get 2nd peak if needed
-							totalSignal += chip_results['signalBinMax_2']
+							totalSignal += adc.linearize(chip_results['signalBinMax_2'])
 
 					peak_results[key].append(totalSignal)
 					if setting == 0:
@@ -298,38 +298,27 @@ class uHTR():
 			total += 1
 		default_peaks_avg /= total
 
-
-		adc = hw.ADCConverter()
-		# for peak in peak_results:
-		# 	for count in xrange(len(peak_results[peak])):
-		# 		ratio = float(adc.linearize(peak_results[peak][count])) / adc.linearize(default_peaks_avg) #ratio between shunt-adjusted peak & default peak
-		# 		print "Setting: ", count, "     ", peak_results[peak][count], '/', default_peaks_avg, ' = ', ratio
-		# 		if (ratio < nominalGainRatios[count]*1.1 and ratio > nominalGainRatios[count]*0.9): #within 10% of nominal
-		# 			ratio_pf[0]+=1
-		# 		else: ratio_pf[1]+=1
-
-
-		# print "_______________Grand total ratio_pf: ", ratio_pf, "________________"
-
 		for qslot in self.qcards:
 			for chip in xrange(12):
 				peak_key=str(self.get_QIE_map(qslot, chip))
 				chip_arr=peak_results[peak_key]
 				ratio_pf = [0, 0]
-				for count in xrange(len(peak_results[peak_key])):
+				for setting in xrange(len(peak_results[peak_key])):
 					print "##### Setting %d #####" %count
-					ratio = float(adc.linearize(peak_results[peak_key][count])) / adc.linearize(default_peaks_avg) #ratio between shunt-adjusted peak & default peak
-					if (ratio < nominalGainRatios[count]*1.1 and ratio > nominalGainRatios[count]*0.9): #within 10% of nominal
+					ratio = float(peak_results[peak_key][setting]) / default_peaks_avg #ratio between shunt-adjusted peak & default peak
+					if (ratio < nominalGainRatios[setting]*1.1 and ratio > nominalGainRatios[setting]*0.9): #within 10% of nominal
 						ratio_pf[0]+=1
-					else: ratio_pf[1]+=1
+						grand_ratio_pf[0]+=1
+					else:
+						ratio_pf[1]+=1
+						grand_ratio_pf[1]+=1
 
-					print "qslot: {0}, chip: {1}, ratio: {2}".format(qslot, chip, ratio)
+					print "qslot: {0}, chip: {1}, setting: {2}, ratio: {3}".format(qslot, chip, setting, ratio)
 
+					self.get_QIE(qslot, chip)["shunt_scan"]=(ratio_pf[0], ratio_pf[1])
 
-		self.get_QIE(qslot, chip)["shunt_scan"]=(ratio_pf[0], ratio_pf[1])
-		print "Pass/Fail:  (", ratio_pf[0], ", ", ratio_pf[1], ")"
+		print "Total Pass/Fail for Shunt Scan:  (",grand_ratio_pf[0],", ",grand_ratio_pf[1],")"
 
-#############################################################
 
 
 #############################################################
