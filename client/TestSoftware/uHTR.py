@@ -281,7 +281,7 @@ class uHTR():
 
 		default_peaks_avg = sum(default_peaks)/len(default_peaks)
 
-# for 10% error bound checking
+		# for 15% error bound checking
 		dataFile.write("\n+++++++++++++++++++ 15 percent error ++++++++++++++++++++")
 		for qslot in self.qcards:
 			for chip in xrange(12):
