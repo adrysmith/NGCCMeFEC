@@ -38,24 +38,46 @@ def writeToRegister(bus, address, register, bytesToWrite):
     bus.write(address, [register] + list(bytesToWrite))
     return None
 
-def toHex(message):
+def toHex(message,option=0):
     message_list = message.split()
     for byte in xrange(len(message_list)):
         message_list[byte] = hex(int(message_list[byte]))
         message_list[byte] = message_list[byte][2:]
         if len(message_list[byte]) == 1:
             message_list[byte] = '0' + message_list[byte]
+    if option == 2:
+        s = ":"
+        return s.join(message_list)
+    if option == 1:
+        s = " "
+        return s.join(message_list)
     s = ""
     return '0x' + s.join(message_list)
 
 def getValue(message):
-    print message
     hex_message = toHex(message)[2:]
     return int(hex_message,16)
+
+def getMessageList(value,num_bytes):
+    hex_message = hex(value)[2:]
+    length = len(hex_message)
+    zeros = "".join(list('0' for i in xrange(8-length)))
+    hex_message = zeros + hex_message
+    # print 'hex message = '+str(hex_message)
+    mList = list(int(hex_message[a:a+2],16) for a in xrange(0,2*num_bytes,2))
+    mList.reverse()
+    return mList
 
 def reverseBytes(message):
     message_list = message.split()
     message_list.reverse()
+    s = " "
+    return s.join(message_list)
+
+# Parse Serial Number (6 bytes) from 8 byte Registration Number.
+def serialNum(message):
+    message_list = message.split()
+    message_list = message_list[2:-1]
     s = " "
     return s.join(message_list)
 
@@ -69,11 +91,11 @@ def sensorTemp(slot,b):
 
     data = ((b.sendBatch()[2]).split())[1:]
     checksum = data[2] # 3rd byte of data is the checksum
-    print "Checksum: " + hex(int(checksum))[2:]
+    print 'Checksum: ' + hex(int(checksum))[2:]
 
     # Splitting the incoming data & concatenating strings of binary bytes
     data = format(int(data[0]),'08b') + format(int(data[1]),'08b')
-    print "2 data bytes: " + data
+    print '2 data bytes: ' + data
     # zero-ing out the 2 status bits, converting to int for calculations
     data = int(data[0:14] + "00", 2)
     # Converting temp using equation

@@ -16,7 +16,7 @@ from client import webBus
 from TestStand import TestStand
 from datetime import datetime
 import subprocess
-import htrProcesses.histo_generator as histgen
+
 
 class makeGui:
 	def __init__(self, parent):
@@ -34,6 +34,7 @@ class makeGui:
 				  "Bridge Register Suite"  : "bridge",
 				  "Igloo Register Suite"   : "igloo",
 				  "Vttx Register Suites"   : "vttx",
+				  "uHTR Test Suite"        : "uhtr",
 				  "Run Long Tests"         : "long",
 				  "Run Short Tests"        : "short"
 				 }
@@ -45,7 +46,7 @@ class makeGui:
 		self.readoutSlots = ["RM 1", "RM 2", "RM 3", "RM 4"]
 
 		# Create a string that uniquely defines a human log file
-		self.humanLogName = "{:%b%d%Y_%H%M%S}".format(datetime.now())+"_tests.log"
+		self.humanLogName = "{:%b%d%Y_%H%M%S}".format(datetime.now())
 
 		# Make an empty list that will eventually contain all of
 		# the active card slots
@@ -55,6 +56,8 @@ class makeGui:
 		# the TestSummary instances that get sent out
 		self.outSummaries = []
 
+		# Make a flag for fan power
+		self.fanPowerFlag = False
 
 		# Name the parent. This is mostly for bookkeeping purposes
 		# and doesn't really get used too much.
@@ -71,6 +74,7 @@ class makeGui:
 		self.piChoiceVar    =  StringVar()
 		self.iterationVar   =  StringVar()
 		self.allCardSelection = IntVar()
+		self.overwriteVar     = IntVar()
 	
 		# Place an all-encompassing frame in the parent window. All of the following
 		# frames will be placed here (topMost_frame) and not in the parent window.
@@ -501,7 +505,7 @@ class makeGui:
 		# Make a field for number of iterations
 		self.iter_entry = Entry(self.qie_subTop_1_frame, textvariable=self.iterationVar)
 		self.iter_entry.pack(side=RIGHT)
-		self.iterationVar.set("15")
+		self.iterationVar.set("20")
 
 		# Make a separation line
 		self.separationLabelTop = Label(self.qie_subTop2_frame, text="------------------------------------------")
@@ -517,6 +521,17 @@ class makeGui:
 			pady=button_pady
 			)
 		self.qie_resetButton.pack(side=TOP)
+
+		# Make a button to cycle fan power
+		self.qie_fanButton = Button(self.qie_subTopMid_frame, command=self.powerFanPress)
+		self.qie_fanButton.configure(text="Toggle Fans On/Off", bg="#F30033")
+		self.qie_fanButton.configure(
+			width=button_width*4,
+			padx=button_padx,
+			pady=button_pady
+			)
+		self.qie_fanButton.pack(side=TOP)
+
 
 		# Make a button to reset the backplane
 		self.qie_resetButton = Button(self.qie_subTopMid_frame, command=self.powerResetPress)
@@ -558,16 +573,26 @@ class makeGui:
 						"Bridge Register Suite",
 						"Igloo Register Suite",
 						"Vttx Register Suites",
+						"uHTR Test Suite",
 						"Run Long Tests",
 						"Run Short Tests"
 						)
 		self.qie_suiteMenu.pack(side=LEFT)
 		self.suiteChoiceVar.set("Main Suite : All Tests")
 
+		# Make a checkbox to overwrite/not overwrite pre-existing data
+		self.overwriteBox = Checkbutton(self.qie_subBot_frame, text="Overwrite existing QIE Card data (if applicable)?", variable=self.overwriteVar)
+		self.overwriteBox.configure(bg="turquoise")
+		self.overwriteBox.pack(side=TOP,
+				       padx = button_padx,
+				       pady = button_pady,
+				       ipady = button_pady*2,
+				       ipadx = button_padx*2)
+		self.overwriteVar.set(1)
 
 		#Make a button to run the main test suite
 		self.qie_testSuite_button = Button(self.qie_subBot_frame, command = self.runTestSuite)
-		self.qie_testSuite_button.configure(text="Run Selected Test Suite", background="turquoise")
+		self.qie_testSuite_button.configure(text="Run Selected Test Suite", background="#33ffcc")
 		self.qie_testSuite_button.configure(
 			width=button_width*4,
 			padx=button_padx,
@@ -630,6 +655,8 @@ class makeGui:
 					pady=button_pady,
 					)
 				self.uHTR_radio.pack(side=LEFT)
+		self.uHTR_slotNumber[1].set(1)
+		self.uHTR_slotNumber[2].set(1)
 
 		# Make top subframe 4
 		self.uHTR_sub4 = Frame(self.uHTR_frame, bg="white")
@@ -692,33 +719,40 @@ class makeGui:
 		b = webBus(self.piChoiceVar.get(),0)
 		b.write(0x00,[0x06])
 		b.sendBatch()
-		print "\n\nBackplane for "+self.piChoiceVar.get()+" reset!\n\n"
+		print '\n\nBackplane for '+self.piChoiceVar.get()+' reset!\n\n'
 
 	def runTestSuite(self):
 		print str(datetime.now())
+		uHTR_outList = self.uHTR_config()
 		self.magicResetPress()
 		self.qie_resetPress()
 		for k in self.outSummaries:
 			k.cardGenInfo["User"] = self.nameChoiceVar.get()
 		self.prepareOutSlots()
 		suiteSelection = self.suiteDict[self.suiteChoiceVar.get()]
-		self.myTestStand = TestStand(self.outSlotNumbers, self.outSummaries, suiteSelection, self.piChoiceVar.get(), int(self.iterationVar.get()))
+		self.myTestStand = TestStand(self.outSlotNumbers, self.outSummaries, suiteSelection,
+					     self.piChoiceVar.get(), int(self.iterationVar.get()), uHTR_outList,
+					     self.nameChoiceVar.get(), self.overwrite)
 		self.myTestStand.runAll()
 		print str(datetime.now())
 
-	def uHTR_tester_bttnPress(self):
+	def uHTR_config(self):
 		outSlotList = []
 		for i in range(len(self.uHTR_slotNumber)):
 			if (self.uHTR_slotNumber[i].get() == 1):
 				outSlotList.append(i)
-		histgen.histo_tests(41, outSlotList, 1000, 0, "","shauntest")
+		return outSlotList
+
+	def uHTR_tester_bttnPress(self):
+		self.suiteChoiceVar.set("uHTR Test Suite")
+		self.runTestSuite()
+		
 
 	def magicResetPress(self):
 		b = webBus(self.piChoiceVar.get(),0)
 		for ngccm in [1,2]: #both ngccm
 			b.write(0x72,[ngccm])
 			b.write(0x74,[0x08]) # PCA9538 is bit 3 on ngccm mux
-			# bus.write(0x70,[0x01,0x00]) # GPIO PwrEn is register 3
 			#power on and reset
 			#register 3 is control reg for i/o modes
 			b.write(0x70,[0x03,0x00]) # sets all GPIO pins to 'output' mode
@@ -727,9 +761,9 @@ class makeGui:
 			b.write(0x70,[0x01,0x18]) # GPIO reset is 10
 			b.write(0x70,[0x01,0x08])
 			batch = b.sendBatch()
-			print 'initial = ', batch
+			print 'initial = '+str(batch)
 
-		print "\n\nMagic reset completed!\n\n"
+		print '\n\nMagic reset completed!\n\n'
 		for j in range(2):
 			self.qie_magicButton.flash()
 
@@ -740,7 +774,17 @@ class makeGui:
 			b.write(0x74,[0x08])
 			b.write(0x70,[0x08,0])
 			b.sendBatch()
-		print "\n\nPower reset completed!\n\n"
+		print '\n\nPower Reset Completed!\n\n'
+
+	def powerFanPress(self):
+		if (self.fanPowerFlag == False):
+			subprocess.call("ssh -A cmshcal11 ssh -A pi@pi3 python startfans.py", shell=True)
+			self.fanPowerFlag = True
+			print '\nFans enabled!\n'
+		elif (self.fanPowerFlag == True):
+			subprocess.call("ssh -A cmshcal11 ssh -A pi@pi3 python stopfans.py", shell=True)
+			self.fanPowerFlag = False
+			print '\nFans disabled!\n'
 	
 	def prepareOutSlots(self):
 		self.outSlotNumbers = []
@@ -756,19 +800,22 @@ class makeGui:
 					self.outSlotNumbers.append(k+10)
 
 	def prepareOutCards(self):
+		self.overwrite = False
+		if (self.overwriteVar.get() == 1): self.overwrite = True
 		for k in range(len(self.cardVarList)):
 			if k in [1,2,3,4]:
-				self.outSummaries.append(testSummary.testSummary((k+1), self.humanLogName))
+				self.outSummaries.append(testSummary.testSummary((k+1), self.humanLogName, self.overwrite))
 			elif k in [5,6,7,8]:
-				self.outSummaries.append(testSummary.testSummary((k+2), self.humanLogName))
+				self.outSummaries.append(testSummary.testSummary((k+2), self.humanLogName, self.overwrite))
 			elif k in [9,10,11,12]:
-				self.outSummaries.append(testSummary.testSummary((k+9), self.humanLogName))
+				self.outSummaries.append(testSummary.testSummary((k+9), self.humanLogName, self.overwrite))
 			elif k in [13,14,15,16]:
-				self.outSummaries.append(testSummary.testSummary((k+10), self.humanLogName))
+				self.outSummaries.append(testSummary.testSummary((k+10), self.humanLogName, self.overwrite))
 
 	def submitToDatabase(self):
-		subprocess.call("ssh cmshcal11 /home/hep/abaas/testing_database/uploader/upload.sh", shell=True)
-		print "Files submitted to database!"
+#		subprocess.call("ssh cmshcal11 /django/abaas/testing_database/uploader/upload.sh", shell=True)
+		subprocess.call("ssh cmshcal11 /home/django/testing_database/uploader/remote.sh", shell=True)
+		print 'Files submitted to database!'
 
 
 root = Tk()

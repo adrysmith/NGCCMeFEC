@@ -37,94 +37,6 @@ def getBinaryListWithPolarity(integer, length):
 
 
 
-<<<<<<< HEAD
-################################################################################
-# qCard Class
-################################################################################
-class qCard:
-    def __init__(self, bus, address):
-        self.address = address
-        self.shiftRegisters = []
-        self.readIn(bus)
-    def __repr__(self):
-        return "qCard()"
-
-    def __str__(self):
-        s = ""
-        for i in self.shiftRegisters:
-            s += str(i)
-        return s
-    def readIn(self, bus):
-        for r in shiftRegisterAddresses:
-            b = readFromRegister(bus, self.address, r, 48)
-            self.shiftRegisters.append(QIEshiftRegister(getBitsFromBytes(b)))
-    def writeOut(self, bus):
-        for i in range(2):
-            writeToRegister(bus, self.address, shiftRegisterAddresses[i],\
-            getBytesFromBits(self.shiftRegisters[i].flatten()))
-################################################################################
-
-def readFromRegister(bus, address, register, numBytes):
-    bus.write(address, [register])
-    bus.read(address, numBytes)
-    ret = []
-    for i in bus.sendBatch()[1].split():
-        ret.append(int(i))
-    return ret
-def writeToRegister(bus, address, register, bytesToWrite):
-    bus.write(address, [register] + list(bytesToWrite))
-    return None
-
-################################################################################
-# BridgeRegister Class
-################################################################################
-class bridgeRegisters:
-    def __init__(self, name, correctVal, address, bits, write):
-        self.name = name
-        self.correctVal = correctVal
-        self.address = address
-        self.bits = bits
-        self.write = write
-
-################################################################################
-# QIEshiftRegister Class
-################################################################################
-class QIEshiftRegister:
-    def __init__(self, arr = list(0 for i in xrange(64 * 6))):
-        '''creates a shift register object with 6 QIEs, default 0s'''
-        self.QIEs = []
-        for i in xrange(6):
-            self.QIEs.append(QIE(arr[i * 64:(i + 1) * 64]))
-
-
-    def __repr__(self):
-        return "shiftRegister()"
-
-    def __str__(self):
-        r = ""
-        for q in self.QIEs:
-            r += "-------\n"
-            r += str(q)
-            r += "\n"
-            r += "-------\n"
-        return r
-    #returns a flattened array of all QIE register bits to be written as a block
-    def flatten(self):
-        '''flatten all of the bits in the register's QIEs to one list'''
-        a = []
-        for q in self.QIEs:
-            a += q.flatten()
-        return a
-################################################################################
-
-
-################################################################################
-# QIE Class
-################################################################################
-=======
-=======
->>>>>>> 2c9cb6e81a2318840860f4a8699d67561597f442
-
 #QIE Class
 class QIE:
     ############################################################################
@@ -175,7 +87,7 @@ class QIE:
             450 : (1,1)
         }.get(v, (-9,-9))
         if d == (-9, -9):
-            print "INVALID INPUT IN setLVDS_output_level_trim... no change made"
+            print 'INVALID INPUT IN setLVDS_output_level_trim... no change made'
         else:
             self[1] = d[0]
             self[2] = d[1]
@@ -187,7 +99,7 @@ class QIE:
         elif b == 1:
             self[3] = 1
         else:
-            print "INVALID INPUT IN discOn... no change made"
+            print 'INVALID INPUT IN discOn... no change made'
 
     #Change bit 4
     def TGain(self, b):
@@ -196,7 +108,7 @@ class QIE:
         elif b == 1:
             self[4] = 1
         else:
-            print "INVALID INPUT IN TGain... no change made"
+            print 'INVALID INPUT IN TGain... no change made'
 
     #Change bits 5-12
     def TimingThresholdDAC(self, magnitude):
@@ -206,7 +118,7 @@ class QIE:
             for i in xrange(8):
                 self[5 + i] = a[i]
         else:
-            print "INVALID INPUT IN TimingThresholdDAC... no change made"
+            print 'INVALID INPUT IN TimingThresholdDAC... no change made'
     #Change bits 13-15
     def TimingIref(self, q):
         d = {
@@ -224,7 +136,7 @@ class QIE:
             self[14] = d[1]
             self[15] = d[2]
         else:
-            print "INVALID INPUT IN TimingIref... no change made"
+            print 'INVALID INPUT IN TimingIref... no change made'
 
     #Change bits 16-21
     def PedestalDAC(self, magnitude):
@@ -235,7 +147,7 @@ class QIE:
             for i in xrange(6):
                 self[16 + i] = a[i]
         else:
-            print "INVALID INPUT IN PedestalDAC... no change made"
+            print 'INVALID INPUT IN PedestalDAC... no change made'
 
 #Change bits 22-25
     def CapID0pedestal(self, magnitude):
@@ -246,7 +158,7 @@ class QIE:
             for i in xrange(4):
                 self[22 + i] = a[i]
         else:
-            print "INVALID INPUT IN CapID0pedestal... no change made"
+            print 'INVALID INPUT IN CapID0pedestal... no change made'
 
     #Change bits 26-29
     def CapID1pedestal(self, magnitude):
@@ -257,7 +169,7 @@ class QIE:
             for i in xrange(4):
                 self[26 + i] = a[i]
         else:
-            print "INVALID INPUT IN CapID1pedestal... no change made"
+            print 'INVALID INPUT IN CapID1pedestal... no change made'
 
     #Change bits 30-33
     def CapID2pedestal(self, magnitude):
@@ -268,7 +180,7 @@ class QIE:
             for i in xrange(4):
                 self[30 + i] = a[i]
         else:
-            print "INVALID INPUT IN CapID2pedestal... no change made"
+            print 'INVALID INPUT IN CapID2pedestal... no change made'
 
     #Change bits 34-37
     def CapID3pedestal(self, magnitude):
@@ -279,7 +191,7 @@ class QIE:
             for i in xrange(4):
                 self[34 + i] = a[i]
         else:
-            print "INVALID INPUT IN CapID3pedestal... no change made"
+            print 'INVALID INPUT IN CapID3pedestal... no change made'
 
     #Change bits 38
     def FixRange(self, b):
@@ -287,7 +199,7 @@ class QIE:
             #fixed range mode = 1, autorange mode = 0
             self[38] = b
         else:
-            print "INVALID INPUT IN FixRange... no change made"
+            print 'INVALID INPUT IN FixRange... no change made'
 
     #Change bits 39-40
     def RangeSet(self, b):
@@ -297,7 +209,7 @@ class QIE:
             for i in xrange(2):
                 self[39 + i] = a[i]
         else:
-            print "INVALID INPUT IN RangeSet... no change made"
+            print 'INVALID INPUT IN RangeSet... no change made'
 
     #Change bits 41-43
     def ChargeInjectDAC(self, charge):
@@ -316,7 +228,7 @@ class QIE:
             for i in xrange(3):
                 self[41 + i] = d[i]
         else:
-            print "INVALID INPUT IN ChargeInjectDAC... no change made"
+            print 'INVALID INPUT IN ChargeInjectDAC... no change made'
 
     #Change bits 44-48
     def Gsel(self, b):
@@ -326,7 +238,7 @@ class QIE:
             for i in xrange(5):
                 self[44 + i] = a[i]
         else:
-            print "INVALID INPUT IN Gsel... no change made"
+            print 'INVALID INPUT IN Gsel... no change made'
 
     #Change bits 49-53
     def Idcset(self, b):
@@ -336,7 +248,7 @@ class QIE:
             for i in xrange(5):
                 self[49 + i] = a[i]
         else:
-            print "INVALID INPUT IN Idcset... no change made"
+            print 'INVALID INPUT IN Idcset... no change made'
     #Change bit 54
     def CkOutEn(self, b):
         if b == 0:
@@ -344,7 +256,7 @@ class QIE:
         elif b == 1:
             self[54] = 1
         else:
-            print "INVALID INPUT IN CkOutEn... no change made"
+            print 'INVALID INPUT IN CkOutEn... no change made'
 
     #Change bit 55
     def TDCmode(self, b):
@@ -353,7 +265,7 @@ class QIE:
         elif b == 1:
             self[55] = 1
         else:
-            print "INVALID INPUT IN TDCmode... no change made"
+            print 'INVALID INPUT IN TDCmode... no change made'
 
     #Change bit 56
     def Hsel(self, b):
@@ -364,9 +276,9 @@ class QIE:
             #amount of hysteresis is doubled as compared to b = 0
             self[56] = 1
         else:
-            print "INVALID INPUT IN Hsel... no change made"
+            print 'INVALID INPUT IN Hsel... no change made'
 
-    #Change bit 57-63
+   #Change bit 57-63
     def PhaseDelay(self, b):
         #takes arguments 0 - 127
         if b <= 127 and b >= 0:
@@ -374,7 +286,7 @@ class QIE:
             for i in xrange(7):
                 self[57 + i] = a[i]
         else:
-            print "INVALID INPUT IN PhaseDelay... no change made"
+            print 'INVALID INPUT IN PhaseDelay... no change made'
 
 
 ##############################################
@@ -396,7 +308,7 @@ class QIE:
             for i in xrange(3):
                 self[41 + i] = d[i]
         else:
-            print "INVALID INPUT IN ChargeInjectDAC... no change made"
+            print 'INVALID INPUT IN ChargeInjectDAC... no change made'
 
 
 ############################################################################

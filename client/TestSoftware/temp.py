@@ -1,6 +1,6 @@
 from client import webBus
 import collections
-from checksumClass import Checksum
+from Checksum import Check
 bus = webBus("pi5",0)
 #bus = webBus("pi6",0)
 
@@ -78,15 +78,15 @@ def readTempHumi(slot, num_bytes, key, hold, verbosity=0):
     message = bus.sendBatch()[-1]
 
 #    crc = cc.checkCRC(message,2)
-    check = Checksum(message,1)
+    check = Check(message,1)
     crc = check.result
 
     value = getValue(message)
 
     if verbosity > 1:
-        print 'message: ', message
-        print 'checksum: ', crc
-        print 'value: ', value
+        print 'message: '+str(message)
+        print 'checksum: '+str(crc)
+        print 'value: '+str(value)
     return [crc,function[key](value)]
 
 def readManyTemps(slot,iterations,key,hold,verbosity=0):
@@ -97,7 +97,7 @@ def readManyTemps(slot,iterations,key,hold,verbosity=0):
             print tempList
         tempArray.append(tempList)
         if int(tempList[0]) != 0:
-            print '~~~~~ ERROR for Test ', i,' : ', tempList
+            print '~~~~~ ERROR for Test '+str(i)+' : '+str(tempList)
     transpose = zip(*tempArray)
     finalTempList = transpose[1]
     tempMin = min(finalTempList)

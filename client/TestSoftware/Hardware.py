@@ -29,12 +29,12 @@ def openChannel(slot, bus):
       # Open channel to ngCCM for RM 1,2: J17 - J26
         bus.write(0x72,[0x01])
     else:
-        print 'Invalid RM = ', rmLoc
+        print 'Invalid RM = '+str(rmLoc)
         print 'Please choose RM = {1,2,3,4}'
         return 'closed channel'
   # Open channel to i2c group
     bus.write(0x74, [ngccmGroup(rmLoc)])
-    bus.read(0x74, 2)
+    bus.read(0x74, 1)
 
   # Reset the backplane
     bus.write(0x00,[0x06])
@@ -54,15 +54,43 @@ def SetQInjMode(onOffBit, slot, bus):
         bus.write(0x09,[0x11,onOffBit,0,0,0])
         bus.sendBatch()
     else:
-        print "INVALID INPUT IN SetQInjMode... doing nothing"
+        print 'INVALID INPUT IN SetQInjMode... doing nothing'
 
-# Cryptic 0x70 Reset
-def reset(ngccm): #RM4,3->ngccm2 -- RM2,1->ngccm1
-    b.write(0x72,[ngccm])
-    b.write(0x74,[0x08])
-    b.write(0x70,[0x3,0])
-    b.write(0x70,[0x1,0])
-    b.sendBatch()
+# Cryptic Magic Reset on 0x70
+def magicReset(ngccm,bus): #RM4,3->ngccm=2 -- RM2,1->ngccm=1
+    bus.write(0x72,[ngccm])
+    bus.write(0x74,[0x08])
+    bus.write(0x70,[0x3,0x0]) # Set to Output
+
+    # The proper way... only change the bit you want to change!
+    bus.write(0x70,[0x1])
+    bus.read(0x70,1)
+    message = bus.sendBatch()[-1]
+    value1 = int(message[2:])
+    value2 = value1 | 0x10
+
+    bus.write(0x70,[0x1,value2])
+    bus.write(0x70,[0x1,value1])
+
+    return bus.sendBatch()
+
+# Power Enable on 0x70
+def powerEnable(ngccm,bus):
+    bus.write(0x72,[ngccm]) #RM4,3->ngccm=2 -- RM2,1->ngccm=1
+    bus.write(0x74,[0x08])
+    bus.write(0x70,[0x3,0x0]) # Set to Output
+
+    # The proper way... only change the bit you want to change!
+    bus.write(0x70,[0x1])
+    bus.read(0x70,1)
+    message = bus.sendBatch()[-1]
+    value1 = int(message[2:])
+    value2 = value1 | 0x8
+
+    bus.write(0x70,[0x1,value2])
+
+    return b.sendBatch()
+    return bus.sendBatch()
 
 
 # Converts ADC to fC (Nate Chaverin's class)
@@ -99,7 +127,7 @@ class ADCConverter:
                         subrange = i
 
                 if subrange == -1:
-                    print "Something has gone horribly wrong!"
+                    print 'Something has gone horribly wrong!'
 
                 # Sensitivity = 3.1 * 8^exp * 2^subrange
                 sensitivity = self.baseSensitivity * 8.0**float(exp) * 2.0**subrange
@@ -108,4 +136,5 @@ class ADCConverter:
                 self.fc[exp * 64 + man] = self.inputCharge[exp * 5 + subrange] + ((man - self.adcBase[subrange]) + .5) * sensitivity
 
     def linearize(self, adc):
+	if adc > 255: adc = 255
         return self.fc[adc]

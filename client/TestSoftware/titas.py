@@ -9,6 +9,7 @@ sys.path.append("../")
 from client import webBus
 import Hardware as h
 import iglooClass_adry as i
+from uniqueID import ID
 # from uHTR import uHTR
 
 
@@ -17,8 +18,6 @@ pi    = "pi5" # 'pi5' or 'pi6' etc
 b     = webBus(pi,0) # webBus sets active pi; 0 = server verbosity off
 all_slots = [2,3,4,5,7,8,9,10,18,19,20,21,23,24,25,26]
 slots = all_slots # list of active J slots
-
-
 
 ##### Functions ######
 
@@ -40,13 +39,27 @@ def printDaisyChain(slots, bus):
 
         dcs.read() # get real values for 2 daisy chains
 
-        print "\n\n>>>>>>>>>>>> SLOT %d <<<<<<<<<<<<<" %i_slot
+        print '\n\n>>>>>>>>>>>> SLOT %d <<<<<<<<<<<<<' %i_slot
 
         for chip in xrange(12):
-            print "\n######## CHIP %d ########" %chip
+            print '\n######## CHIP %d ########' %chip
             print dcs[chip]
 
-        print "############################"
+        print '############################'
+
+
+''' change tdc threshold '''
+def setTimingThresholdDAC(slots, threshold_val, bus):
+
+    for i_slot in slots: # all desired slots
+
+        dcs = h.getDChains(i_slot,bus) # the 2 daisy chains from one QIE card
+        dcs.read()
+
+        for chip in xrange(12): # all 12 chips
+            dcs[chip].TimingThresholdDAC(threshold_val) # change threshold
+
+        dcs.write() # write the changes for both daisy chains
 
 
 ''' change tdc threshold '''
@@ -237,20 +250,45 @@ def powerEnable(bus):
 
         bus.sendBatch()
 
+##### Unique ID #####
+# Initial with a buss and slot
+def printID(bus, slots):
+    for slot in slots:
+        uID = ID(bus, slot)
+        print '\nSlot J' + str(slot)
+        print 'raw id = '+str(uID.raw+
+        print 'serial id = '+str(uID.serial)
+        print 'full id = '+str(uID.full+
+        print 'really full id = '+str(uID.reallyfull)
+        print 'split id = '+str(uID.split)
+        print 'flip id = '+str(uID.flip)
+        print 'sort id = '+str(uID.sort)
 
 ##### Calling functions #####
 
-powerEnable(b)
-chargeInjectOn(slots,b)
-#chargeInjectOff(slots,b)
-printDaisyChain(slots,b)
-# setTimingThresholdDAC(slots, -127, b)
+# powerEnable(b)
+# chargeInjectOn(slots,b)
+# #chargeInjectOff(slots,b)
+# printDaisyChain(slots,b)
 # setPedestalDAC(slots,6,b) #6bits->12fc is default
-# setCapID0pedestal(slots,0,b)
-# setCapID1pedestal(slots,1,b)
-# setCapID2pedestal(slots,1,b)
-# setCapID3pedestal(slots,1,b)
-# setFixRangeModeOn(slots,3,b)
-setChargeInjectDAC(slots,8640,b)
-print "\n\n\n\n\n AFTER CHANGES: \n"
-printDaisyChain(slots,b)
+# #setCapID0pedestal(slots,0,b)
+# # setCapID1pedestal(slots,1,b)
+# # setCapID2pedestal(slots,1,b)
+# # setCapID3pedestal(slots,1,b)
+# # setFixRangeModeOn(slots,3,b)
+# setChargeInjectDAC(slots,2880,b)
+# print '\n\n\n\n\n AFTER CHANGES: \n'
+# printDaisyChain(slots,b)
+
+# Print ID given bus and slots
+# printID(bus, slots)
+# mySlots = [2,5,7,8,10]
+printID(b,slots)
+
+# print 'open = ', h.openChannel(2,b)
+# print 'power = ', h.powerEnable(2,b)
+# print 'reset = ', h.magicReset(2,b)
+#
+# print 'open = ', h.openChannel(18,b)
+# print 'power = ', h.powerEnable(1,b)
+# print 'reset = ', h.magicReset(1,b)
