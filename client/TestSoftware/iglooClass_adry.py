@@ -35,8 +35,13 @@ class fpgaMajVer(Test): #inherit from Test class, overload testBody() function
         print '----------%s----------' %name
         # for RO register, read1 == read2 constitutes a PASS
         if (i.RWR_forRO_Quiet(self.bus, i.iglooAdd, reg, size)):
-            print '~~PASS: RO not writable~~'
-            return True
+            maj = i.readFromRegister_Quiet(self.bus, i.iglooAdd, reg, size)
+            if maj == [0]:
+                print maj
+                print '~~PASS: Igloo Major Ver Firmware = 0 ~~'
+                return True
+            else:
+                return False
         else:
             return False
 # ------------------------------------------------------------------------
@@ -49,8 +54,13 @@ class fpgaMinVer(Test): #inherit from Test class, overload testBody() function
         print '----------%s----------' %name
         # for RO register, read1 == read2 constitutes a PASS
         if (i.RWR_forRO_Quiet(self.bus, i.iglooAdd, reg, size)):
-            print '~~PASS: RO not writable~~'
-            return True
+            min = i.readFromRegister_Quiet(self.bus, i.iglooAdd, reg, size)
+            if min == [9]:
+                print min
+                print '~~PASS: Igloo Minor Ver Firmware = 9 ~~'
+                return True
+            else:
+                return False
         else:
             return False
 # ------------------------------------------------------------------------
@@ -1012,14 +1022,19 @@ def runSelect(bus):
     h.openChannel(slot,bus)
     bus.write(h.getCardAddress(slot),[0x11,0x03,0,0,0])
 
-    m = clk_count(bus,i.igloo["clk_count"]["register"],'iglooClass.txt', 1)
+    m = fpgaMajVer(bus,i.igloo["fpgaMajVer"]["register"],'iglooClass.txt', 1)
     print m.run()
-    a = rst_QIE_count(bus,i.igloo["rst_QIE_count"]["register"],'iglooClass.txt', 1)
-    print a.run()
-    d = wte_count(bus,i.igloo["wte_count"]["register"],'iglooClass.txt', 1)
-    print d.run()
-    e = capIDErr_count(bus,i.igloo["capIDErr_count"]["register"],'iglooClass.txt', 1)
-    print e.run()
+    m = fpgaMinVer(bus,i.igloo["fpgaMinVer"]["register"],'iglooClass.txt', 1)
+    print m.run()
+    #
+    # m = clk_count(bus,i.igloo["clk_count"]["register"],'iglooClass.txt', 1)
+    # print m.run()
+    # a = rst_QIE_count(bus,i.igloo["rst_QIE_count"]["register"],'iglooClass.txt', 1)
+    # print a.run()
+    # d = wte_count(bus,i.igloo["wte_count"]["register"],'iglooClass.txt', 1)
+    # print d.run()
+    # e = capIDErr_count(bus,i.igloo["capIDErr_count"]["register"],'iglooClass.txt', 1)
+    # print e.run()
 
 
 def readOutInputSpy(bus):
